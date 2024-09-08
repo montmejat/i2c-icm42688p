@@ -1,2 +1,4 @@
 .vscode/
 main.out
+.venv/
+__pycache__/
