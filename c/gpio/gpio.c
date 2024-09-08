@@ -6,7 +6,7 @@
 
 #include "gpio.h"
 
-struct gpiod_line_request *request_input_line(const char *chip_path,
+struct gpiod_line_request *request_input_line_rising(const char *chip_path,
                                                      unsigned int offset,
                                                      const char *consumer)
 {

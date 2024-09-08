@@ -42,11 +42,19 @@ struct icm42688p
     float gyro_res;
 };
 
+struct imu_data
+{
+    float temperature;
+    float accel[3];
+    float gyro[3];
+};
+
 int init(const char *i2c_bus, int i2c_addr, struct icm42688p *icm);
 int set_accel_scale(struct icm42688p *icm, uint8_t scale);
 void set_accel_odr(struct icm42688p *icm, uint8_t odr);
 int set_gyro_scale(struct icm42688p *icm, uint8_t scale);
 void set_gyro_odr(struct icm42688p *icm, uint8_t odr);
 void enable_data_ready_int(struct icm42688p *icm);
+int measure(struct icm42688p icm, struct imu_data *imu_data);
 
 void print_config(struct icm42688p icm);

@@ -20,8 +20,6 @@ int main()
     set_accel_odr(icm, ODR_100);
     enable_data_ready_int(icm);
 
-    print_config(*icm);
-
     static const char *const chip_path = "/dev/gpiochip0";
     static const unsigned int line_offset = 4;
 
@@ -30,12 +28,10 @@ int main()
     struct gpiod_edge_event *event;
     int i, ret, event_buf_size;
 
-    request = request_input_line(chip_path, line_offset,
-                                 "watch-line-value");
+    request = request_input_line_rising(chip_path, line_offset, "watch-line-value");
     if (!request)
     {
-        fprintf(stderr, "failed to request line: %s\n",
-                strerror(errno));
+        fprintf(stderr, "failed to request line: %s\n", strerror(errno));
         return EXIT_FAILURE;
     }
 
@@ -43,30 +39,29 @@ int main()
     event_buffer = gpiod_edge_event_buffer_new(event_buf_size);
     if (!event_buffer)
     {
-        fprintf(stderr, "failed to create event buffer: %s\n",
-                strerror(errno));
+        fprintf(stderr, "failed to create event buffer: %s\n", strerror(errno));
         return EXIT_FAILURE;
     }
 
     for (;;)
     {
-        /* Blocks until at least one event is available. */
-        ret = gpiod_line_request_read_edge_events(request, event_buffer,
-                                                  event_buf_size);
+        ret = gpiod_line_request_read_edge_events(request, event_buffer, event_buf_size);
         if (ret == -1)
         {
-            fprintf(stderr, "error reading edge events: %s\n",
-                    strerror(errno));
+            fprintf(stderr, "error reading edge events: %s\n", strerror(errno));
             return EXIT_FAILURE;
         }
+
         for (i = 0; i < ret; i++)
         {
-            event = gpiod_edge_event_buffer_get_event(event_buffer,
-                                                      i);
-            printf("offset: %d  type: %-7s  event #%ld\n",
-                   gpiod_edge_event_get_line_offset(event),
-                   edge_event_type_str(event),
-                   gpiod_edge_event_get_line_seqno(event));
+            event = gpiod_edge_event_buffer_get_event(event_buffer, i);
+            // printf("timestamp_ns: %llu\n", gpiod_edge_event_get_timestamp_ns(event));
+
+            struct imu_data imu_data;
+            if (measure(*icm, &imu_data))
+                return EXIT_FAILURE;
+
+            printf("temperature: %f, accel: %f %f %f\n", imu_data.temperature, imu_data.accel[0], imu_data.accel[1], imu_data.accel[2]);
         }
     }
 
