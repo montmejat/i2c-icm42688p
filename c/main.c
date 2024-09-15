@@ -15,9 +15,9 @@ int main()
 
     init(i2c_bus, i2c_addr, icm);
     set_accel_scale(icm, ACCEL_FS_4g);
-    set_accel_odr(icm, ODR_100);
+    set_accel_odr(icm, ODR_12_5);
     set_gyro_scale(icm, GYRO_FS_2000dps);
-    set_accel_odr(icm, ODR_100);
+    set_gyro_odr(icm, ODR_12_5);
     enable_data_ready_int(icm);
 
     static const char *const chip_path = "/dev/gpiochip0";
@@ -55,15 +55,12 @@ int main()
         for (i = 0; i < ret; i++)
         {
             event = gpiod_edge_event_buffer_get_event(event_buffer, i);
-            // printf("timestamp_ns: %llu\n", gpiod_edge_event_get_timestamp_ns(event));
 
             struct imu_data imu_data;
-            // if (measure(*icm, &imu_data))
-            //     return EXIT_FAILURE;
             measure(*icm, &imu_data);
 
-            printf("temperature: %f, accel: %f %f %f, gyro: %f, %f, %f\n",
-                   imu_data.temperature,
+            printf("timestamp_ns: %llu, temperature: %f, accel: %f %f %f, gyro: %f, %f, %f\n",
+                   gpiod_edge_event_get_timestamp_ns(event), imu_data.temperature,
                    imu_data.accel[0], imu_data.accel[1], imu_data.accel[2],
                    imu_data.gyro[0], imu_data.gyro[1], imu_data.gyro[2]);
         }

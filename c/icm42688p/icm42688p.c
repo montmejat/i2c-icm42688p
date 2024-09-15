@@ -52,21 +52,21 @@ int read_bytes(struct icm42688p icm, uint8_t reg, uint8_t *buf, int len)
 {
     if (icm.file < 0)
     {
-        perror("Invalid file descriptor\n");
+        fprintf(stderr, "Wrong file descriptor: %d.\n", icm.file);
         return 1;
     }
 
-    // printf("Writing to register: 0x%02x\n", reg);
-
-    if (write(icm.file, &reg, 1) != 1)
+    int ret = write(icm.file, &reg, 1);
+    if (ret != 1)
     {
-        fprintf(stderr, "Failed to write 0x01 to register 0x%02X of file descriptor %d\n", reg, icm.file);
+        fprintf(stderr, "Failed to write 0x1 to register 0x%02X of file descriptor %d (%d).\n", reg, icm.file, ret);
         return 1;
     }
 
-    if (read(icm.file, buf, len) != len)
+    ret = read(icm.file, buf, len);
+    if (ret != len)
     {
-        perror("Failed to read data in read_bytes");
+        fprintf(stderr, "Failed to read %d bytes from file descriptor %d (%d).\n", len, icm.file, ret);
         return 1;
     }
 
