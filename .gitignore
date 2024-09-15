@@ -1,4 +1,11 @@
 .vscode/
+
+# C
 main.out
+
+# Python
 .venv/
 __pycache__/
+
+# Rust
+target/
