@@ -52,15 +52,15 @@ int read_bytes(struct icm42688p icm, uint8_t reg, uint8_t *buf, int len)
 {
     if (icm.file < 0)
     {
-        fprintf(stderr, "Invalid file descriptor\n");
+        perror("Invalid file descriptor\n");
         return 1;
     }
 
-    printf("Writing to register: 0x%02x\n", reg);
+    // printf("Writing to register: 0x%02x\n", reg);
 
     if (write(icm.file, &reg, 1) != 1)
     {
-        perror("Failed to write reg in read_bytes");
+        fprintf(stderr, "Failed to write 0x01 to register 0x%02X of file descriptor %d\n", reg, icm.file);
         return 1;
     }
 
@@ -169,31 +169,17 @@ int measure(struct icm42688p icm, struct imu_data *imu_data)
     // Message starts at REG_TEMP_DATA1 and is 14 bytes long:
     // temp1 + temp0 + accel_x1 + accel_x0 + ... + gyro_z1 + gyro_z0
 
-    // measure = np.frombuffer(bytes(measure), dtype = self.frametype).astype(np.float64)
-
-    printf("imu.file: %d\n", icm.file);
-
-    unsigned char data[14];
+    unsigned char data[14] = {0};
     if (read_bytes(icm, REG_TEMP_DATA1, data, 14))
         return 1;
 
-    printf("imu.file: %d\n", icm.file);
-
-    // self.temp = (measure[0] / 132.48) + 25
-    imu_data->temperature = (float)(data[0]) / 132.48 + 25;
-
-    // self.accel = measure[1:4] * self.accel_res
-    imu_data->accel[0] = (float)(data[2]) * icm.accel_res;
-    imu_data->accel[1] = (float)(data[4]) * icm.accel_res;
-    imu_data->accel[2] = (float)(data[6]) * icm.accel_res;
-    // self.gyro = measure[4:7] * self.gyro_res
-
-    // if not degrees:
-    //     self.gyro *= np.pi / 180
-    // if not gravity:
-    //     self.accel *= 9.80665
-
-    printf("imu.file: %d\n", icm.file);
+    imu_data->temperature = (int16_t)((data[0] << 8) | data[1]) / 132.48 + 25;
+    imu_data->accel[0] = (int16_t)(data[2] << 8 | data[3]) * icm.accel_res;
+    imu_data->accel[1] = (int16_t)(data[4] << 8 | data[5]) * icm.accel_res;
+    imu_data->accel[2] = (int16_t)(data[6] << 8 | data[7]) * icm.accel_res;
+    imu_data->gyro[0] = (int16_t)(data[8] << 8 | data[9]) * icm.gyro_res;
+    imu_data->gyro[1] = (int16_t)(data[10] << 8 | data[11]) * icm.gyro_res;
+    imu_data->gyro[2] = (int16_t)(data[12] << 8 | data[13]) * icm.gyro_res;
 
     return 0;
 }

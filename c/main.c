@@ -58,10 +58,14 @@ int main()
             // printf("timestamp_ns: %llu\n", gpiod_edge_event_get_timestamp_ns(event));
 
             struct imu_data imu_data;
-            if (measure(*icm, &imu_data))
-                return EXIT_FAILURE;
+            // if (measure(*icm, &imu_data))
+            //     return EXIT_FAILURE;
+            measure(*icm, &imu_data);
 
-            printf("temperature: %f, accel: %f %f %f\n", imu_data.temperature, imu_data.accel[0], imu_data.accel[1], imu_data.accel[2]);
+            printf("temperature: %f, accel: %f %f %f, gyro: %f, %f, %f\n",
+                   imu_data.temperature,
+                   imu_data.accel[0], imu_data.accel[1], imu_data.accel[2],
+                   imu_data.gyro[0], imu_data.gyro[1], imu_data.gyro[2]);
         }
     }
 
