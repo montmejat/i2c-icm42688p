@@ -31,14 +31,14 @@ fn main() -> libgpiod::Result<()> {
 
         for event in events {
             let event = event?;
+            icm.read_data();
+
             println!(
-                "line: {}  type: {:<7}  event #{}",
-                event.line_offset(),
-                match event.event_type()? {
-                    line::EdgeKind::Rising => "Rising",
-                    line::EdgeKind::Falling => "Falling",
-                },
-                event.line_seqno()
+                "timestamp: {}, temp: {}, accel: {:?}, gyro: {:?}",
+                event.timestamp().as_nanos(),
+                icm.temperature,
+                icm.accel,
+                icm.gyro,
             );
         }
     }

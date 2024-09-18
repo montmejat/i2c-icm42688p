@@ -8,6 +8,7 @@ const WHO_AM_I: u8 = 0x47;
 
 const REG_DEVICE_CONFIG: u8 = 0x11;
 const REG_INT_CONFIG: u8 = 0x14;
+const REG_TEMP_DATA1: u8 = 0x1D;
 const REG_PWR_MGMT0: u8 = 0x4E;
 const REG_GYRO_CONFIG0: u8 = 0x4F;
 const REG_ACCEL_CONFIG0: u8 = 0x50;
@@ -60,22 +61,26 @@ pub struct Icm42688p {
     accel_res: f32,
     gyro_config_0: u8,
     gyro_res: f32,
+    pub temperature: f32,
+    pub gyro: [f32; 3],
+    pub accel: [f32; 3],
 }
 
 impl Icm42688p {
     pub fn new(bus: &str, address: u16) -> Self {
         let mut device = LinuxI2CDevice::new(bus, address).unwrap();
         let accel_config_0 = device.smbus_read_byte_data(REG_ACCEL_CONFIG0).unwrap();
-        let accel_res = 1.0;
         let gyro_config_0 = device.smbus_read_byte_data(REG_GYRO_CONFIG0).unwrap();
-        let gyro_res = 1.0;
 
         let mut icm = Icm42688p {
             device,
             accel_config_0,
-            accel_res,
+            accel_res: 1.0, // TODO: read from sensor
             gyro_config_0,
-            gyro_res,
+            gyro_res: 1.0,    // TODO: read from sensor
+            temperature: 0.0, // TODO: read from sensor
+            gyro: [0.0; 3],
+            accel: [0.0; 3],
         };
 
         assert!(icm.device.smbus_read_byte_data(REG_WHO_AM_I).unwrap() == WHO_AM_I);
@@ -122,7 +127,7 @@ impl Icm42688p {
             .smbus_write_byte_data(REG_ACCEL_CONFIG0, accel_config)
             .unwrap();
         self.accel_config_0 = accel_config;
-        self.accel_res = (1 << (4 - accel_scale)) as f32 / 32768.;
+        self.accel_res = (1 << (4 - accel_scale)) as f32 / 32768.0;
     }
 
     pub fn change_accel_odr(&mut self, odr: SamplingRate) {
@@ -141,7 +146,7 @@ impl Icm42688p {
             .smbus_write_byte_data(REG_GYRO_CONFIG0, gyro_config)
             .unwrap();
         self.gyro_config_0 = gyro_config;
-        self.gyro_res = (2000. / (1 << gyro_scale) as f32) / 32768.;
+        self.gyro_res = (2000. / (1 << gyro_scale) as f32) / 32768.0;
     }
 
     pub fn change_gyro_odr(&mut self, odr: SamplingRate) {
@@ -157,5 +162,20 @@ impl Icm42688p {
             .smbus_write_byte_data(REG_GYRO_CONFIG0, gyro_config)
             .unwrap();
         self.gyro_config_0 = gyro_config;
+    }
+
+    pub fn read_data(&mut self) {
+        let data = self
+            .device
+            .smbus_read_i2c_block_data(REG_TEMP_DATA1, 14)
+            .unwrap();
+
+        self.temperature = (((data[0] as i16) << 8) | data[1] as i16) as f32 / 132.48 + 25.0;
+        self.accel[0] = ((data[2] as i16) << 8 | data[3] as i16) as f32 * self.accel_res;
+        self.accel[1] = ((data[4] as i16) << 8 | data[5] as i16) as f32 * self.accel_res;
+        self.accel[2] = ((data[6] as i16) << 8 | data[7] as i16) as f32 * self.accel_res;
+        self.gyro[0] = ((data[8] as i16) << 8 | data[9] as i16) as f32 * self.gyro_res;
+        self.gyro[1] = ((data[10] as i16) << 8 | data[11] as i16) as f32 * self.gyro_res;
+        self.gyro[2] = ((data[12] as i16) << 8 | data[13] as i16) as f32 * self.gyro_res;
     }
 }
