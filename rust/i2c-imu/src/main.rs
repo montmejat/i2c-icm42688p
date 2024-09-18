@@ -4,6 +4,10 @@ mod icm42688p;
 
 fn main() -> libgpiod::Result<()> {
     let mut icm = icm42688p::Icm42688p::new("/dev/i2c-1", 0x68);
+    icm.change_accel_scale(icm42688p::AccelScale::Fs4g);
+    icm.change_accel_odr(icm42688p::SamplingRate::Odr12_5);
+    icm.change_gyro_scale(icm42688p::GyroScale::Fs2000dps);
+    icm.change_gyro_odr(icm42688p::SamplingRate::Odr12_5);
     icm.enable_data_interuption();
 
     let chip_path = "/dev/gpiochip0";

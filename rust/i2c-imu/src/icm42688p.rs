@@ -9,17 +9,21 @@ const WHO_AM_I: u8 = 0x47;
 const REG_DEVICE_CONFIG: u8 = 0x11;
 const REG_INT_CONFIG: u8 = 0x14;
 const REG_PWR_MGMT0: u8 = 0x4E;
+const REG_GYRO_CONFIG0: u8 = 0x4F;
+const REG_ACCEL_CONFIG0: u8 = 0x50;
 const REG_INT_SOURCE0: u8 = 0x65;
 const REG_WHO_AM_I: u8 = 0x75;
 const REG_BANK_SEL: u8 = 0x76;
 
+#[allow(dead_code)]
 pub enum AccelScale {
-    Fs2g = 0x00,
-    Fs4g = 0x01,
-    Fs8g = 0x02,
-    Fs16g = 0x03,
+    Fs2g,
+    Fs4g,
+    Fs8g,
+    Fs16g,
 }
 
+#[allow(dead_code)]
 pub enum GyroScale {
     Fs125dps,
     Fs250dps,
@@ -31,14 +35,49 @@ pub enum GyroScale {
     Fs15_6dps,
 }
 
+#[allow(dead_code)]
+pub enum SamplingRate {
+    Odr32k,
+    Odr16k,
+    Odr8k,
+    Odr4k,
+    Odr2k,
+    Odr1k,
+    Odr200,
+    Odr100,
+    Odr50,
+    Odr25,
+    Odr12_5,
+    Odr6_25,
+    Odr3_125,
+    Odr1_5625,
+    Odr500,
+}
+
 pub struct Icm42688p {
     device: LinuxI2CDevice,
+    accel_config_0: u8,
+    accel_res: f32,
+    gyro_config_0: u8,
+    gyro_res: f32,
 }
 
 impl Icm42688p {
     pub fn new(bus: &str, address: u16) -> Self {
-        let device = LinuxI2CDevice::new(bus, address).unwrap();
-        let mut icm = Icm42688p { device };
+        let mut device = LinuxI2CDevice::new(bus, address).unwrap();
+        let accel_config_0 = device.smbus_read_byte_data(REG_ACCEL_CONFIG0).unwrap();
+        let accel_res = 1.0;
+        let gyro_config_0 = device.smbus_read_byte_data(REG_GYRO_CONFIG0).unwrap();
+        let gyro_res = 1.0;
+
+        let mut icm = Icm42688p {
+            device,
+            accel_config_0,
+            accel_res,
+            gyro_config_0,
+            gyro_res,
+        };
+
         assert!(icm.device.smbus_read_byte_data(REG_WHO_AM_I).unwrap() == WHO_AM_I);
 
         icm.device
@@ -76,6 +115,47 @@ impl Icm42688p {
     }
 
     pub fn change_accel_scale(&mut self, scale: AccelScale) {
-        let accel_config = (scale as u8) << 5;
+        let accel_scale = scale as u8;
+
+        let accel_config = (accel_scale << 5) | (self.accel_config_0 & 0x1F);
+        self.device
+            .smbus_write_byte_data(REG_ACCEL_CONFIG0, accel_config)
+            .unwrap();
+        self.accel_config_0 = accel_config;
+        self.accel_res = (1 << (4 - accel_scale)) as f32 / 32768.;
+    }
+
+    pub fn change_accel_odr(&mut self, odr: SamplingRate) {
+        let accel_config = (odr as u8 + 1) | (self.accel_config_0 & 0xF0);
+        self.device
+            .smbus_write_byte_data(REG_ACCEL_CONFIG0, accel_config)
+            .unwrap();
+        self.accel_config_0 = accel_config;
+    }
+
+    pub fn change_gyro_scale(&mut self, scale: GyroScale) {
+        let gyro_scale = scale as u8;
+
+        let gyro_config = (gyro_scale << 5) | (self.gyro_config_0 & 0x1F);
+        self.device
+            .smbus_write_byte_data(REG_GYRO_CONFIG0, gyro_config)
+            .unwrap();
+        self.gyro_config_0 = gyro_config;
+        self.gyro_res = (2000. / (1 << gyro_scale) as f32) / 32768.;
+    }
+
+    pub fn change_gyro_odr(&mut self, odr: SamplingRate) {
+        let sampling_rate = odr as u8;
+        if sampling_rate >= SamplingRate::Odr6_25 as u8
+            && sampling_rate <= SamplingRate::Odr1_5625 as u8
+        {
+            return; // invalid odr for gyroscope, must be >= 12.5 hz
+        }
+
+        let gyro_config = (sampling_rate + 1) | (self.gyro_config_0 & 0xF0);
+        self.device
+            .smbus_write_byte_data(REG_GYRO_CONFIG0, gyro_config)
+            .unwrap();
+        self.gyro_config_0 = gyro_config;
     }
 }
